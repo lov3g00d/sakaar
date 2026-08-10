@@ -176,10 +176,7 @@ deploy() {
   mkdir -p "$work"
   arc="$work/$(basename "$url")"
 
-  [ -f "$arc" ] || {
-    step "downloading $id"
-    curl -L --fail -C - -o "$arc" "$url"
-  }
+  download "$url" "$arc"
   [ -z "$sha" ] || {
     step "verifying checksum"
     echo "${sha}  ${arc}" | sha256sum -c - >/dev/null || die "checksum mismatch"

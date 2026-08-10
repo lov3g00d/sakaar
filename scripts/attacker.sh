@@ -15,10 +15,7 @@ import_kali() {
   sha=$(lab .kali.sha256)
   mkdir -p "$VMS"
   arc="$VMS/$(basename "$url")"
-  if [ ! -f "$arc" ]; then
-    step "downloading Kali ${ver} (~3.6G, one time)"
-    curl -L --fail -C - -o "$arc" "$url"
-  fi
+  download "$url" "$arc"
   step "verifying checksum"
   echo "${sha}  ${arc}" | sha256sum -c - >/dev/null || die "Kali checksum mismatch"
   img="$VMS/kali-linux-${ver}-qemu-amd64.qcow2"

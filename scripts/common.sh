@@ -24,6 +24,19 @@ die() {
 msg() { printf '%s\n' "$*"; }
 step() { printf '%s==>%s %s\n' "$C" "$Z" "$*"; }
 
+# Download a URL to a destination, resuming partials and skipping when the local
+# file already matches the server's size. Never leaves a truncated file that a
+# later extract would choke on.
+download() {
+  local url="$1" dest="$2" srv=0 have=0
+  srv=$(curl -sIL --max-time 30 "$url" 2>/dev/null |
+    awk 'BEGIN { IGNORECASE = 1 } /^content-length:/ { v = $2 } END { print v + 0 }' | tr -d '\r')
+  [ -f "$dest" ] && have=$(stat -c %s "$dest")
+  if [ "$srv" -gt 0 ] && [ "$have" -eq "$srv" ]; then return 0; fi
+  step "fetching $(basename "$dest")"
+  curl -L --fail -C - -o "$dest" "$url"
+}
+
 # yq scalar read; missing/null -> empty string.
 yqf() {
   local v
