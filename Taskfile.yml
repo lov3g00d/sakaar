@@ -34,9 +34,14 @@ tasks:
       - 'bash {{.S}}/target.sh status'
 
   targets:
-    desc: List the box catalog (deployable VulnHub machines)
+    desc: List curated boxes (+ the full VulnHub index count)
     cmds:
       - 'bash {{.S}}/target.sh list'
+
+  vulnhub:sync:
+    desc: Rebuild the VulnHub box index from download.vulnhub.com
+    cmds:
+      - 'bash {{.S}}/vulnhub-sync.sh'
 
   # ------------------------------------------------------------------- attacker
   attacker:console:
