@@ -7,6 +7,7 @@ ROOT=${SAKAAR_ROOT:-$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)}
 LAB="$ROOT/config/lab.yml"
 VMS="$ROOT/vms"
 CATALOG="$ROOT/catalog"
+MACHINES="$ROOT/machines"
 
 # Every libvirt call targets the system daemon (where the range VMs live).
 export LIBVIRT_DEFAULT_URI="qemu:///system"
@@ -49,3 +50,15 @@ lab() { yqf "$LAB" "$1"; }
 
 domain_state() { virsh domstate "$1" 2>/dev/null || echo "absent"; }
 domain_exists() { virsh dominfo "$1" >/dev/null 2>&1; }
+
+# Authored machines (built locally from a recipe).
+mach_dir() { echo "$MACHINES/$1"; }
+mach_get() { yqf "$(mach_dir "$1")/machine.yml" "$2"; }
+is_machine() { [ -f "$(mach_dir "$1")/machine.yml" ]; }
+mach_ids() {
+  [ -d "$MACHINES" ] || return 0
+  local d
+  for d in "$MACHINES"/*/; do
+    [ -f "$d/machine.yml" ] && basename "$d"
+  done | sort
+}

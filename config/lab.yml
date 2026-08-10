@@ -25,3 +25,8 @@ target_defaults:
   cpus: 1
   nic_model: e1000
   disk_bus: sata
+
+# Base cloud images for building authored machines (official, reliable mirrors).
+bases:
+  debian12:
+    url: https://cloud.debian.org/images/cloud/bookworm/latest/debian-12-genericcloud-amd64.qcow2

@@ -43,6 +43,16 @@ tasks:
     cmds:
       - 'bash {{.S}}/vulnhub-sync.sh'
 
+  machines:
+    desc: List authored machines (build-your-own vulnerable boxes)
+    cmds:
+      - 'bash {{.S}}/build.sh list'
+
+  build:
+    desc: Build an authored machine from its recipe (MACHINE=<id>, or run bare to fzf-pick)
+    cmds:
+      - 'bash {{.S}}/build.sh {{.MACHINE}}'
+
   # ------------------------------------------------------------------- attacker
   attacker:console:
     desc: Open the graphical Kali desktop

@@ -1,0 +1,8 @@
+id: web-sqli
+name: Web SQLi
+description: A PHP login with SQL injection that leaks SSH credentials; foothold then a sudo-find privilege escalation to root.
+difficulty: easy
+base: debian12
+memory: 1024
+cpus: 1
+tags: [web, sqli, privesc]

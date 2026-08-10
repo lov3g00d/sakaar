@@ -33,6 +33,8 @@ is_curated() { [ -f "$(cat_file "$1")" ]; }
 box_name() {
   if is_curated "$1"; then
     cat_get "$1" .name
+  elif is_machine "$1"; then
+    mach_get "$1" .name
   elif is_index "$1"; then
     awk -F'\t' -v i="$1" '$1 == i {print $2; exit}' "$INDEX"
   else
@@ -42,7 +44,8 @@ box_name() {
 
 require_box() {
   [ -n "${1:-}" ] || die "a box is required. Run 'task targets' to list them."
-  is_curated "$1" || is_index "$1" || die "unknown box '$1'. Run 'task targets' to list them."
+  is_curated "$1" || is_machine "$1" || is_index "$1" ||
+    die "unknown box '$1'. Run 'task targets' to list them."
 }
 
 # Deployed target VMs, by id (excludes the attacker).
@@ -87,12 +90,15 @@ choose() {
   else
     sel=$(
       {
+        for id in $(mach_ids); do
+          printf '%s\t[machine] %s (%s)\n' "$id" "$(mach_get "$id" .name)" "$(mach_get "$id" .difficulty)"
+        done
         for id in $(cat_ids); do
           printf '%s\t[curated] %s (%s)\n' "$id" "$(cat_get "$id" .name)" "$(cat_get "$id" .difficulty)"
         done
         [ -f "$INDEX" ] && awk -F'\t' '{printf "%s\t%s\n", $1, $2}' "$INDEX"
       } | column -t -s $'\t' | fzf --prompt='deploy box> ' --height=60% --reverse \
-        --header="pick a box - $(idx_count) VulnHub boxes + curated"
+        --header="pick a box - authored machines + curated + $(idx_count) VulnHub"
     ) || true
   fi
   [ -n "$sel" ] || exit 0
@@ -149,6 +155,22 @@ deploy() {
     msg "$id already deployed as $dom (IP: $(lease_ip "$dom" || echo pending))"
     return 0
   }
+
+  # Authored machines: the qcow2 is already built; import it directly.
+  if is_machine "$id"; then
+    local out="$VMS/$id/box.qcow2"
+    [ -f "$out" ] || die "$id is not built yet - run 'task build $id' first."
+    step "importing $dom (built machine) on $NET"
+    virt-install --name "$dom" \
+      --memory "$(mach_get "$id" .memory)" --vcpus "$(mach_get "$id" .cpus)" \
+      --import --disk path="$out",format=qcow2,bus=virtio \
+      --osinfo detect=on,require=off \
+      --network network="$NET",model=virtio \
+      --graphics spice --video qxl --noautoconsole
+    virsh snapshot-create-as "$dom" clean 'clean baseline' >/dev/null 2>&1 || true
+    msg "${G}deployed${Z} $id as $dom. Find its IP with ${C}task status${Z}, then attack it from Kali."
+    return 0
+  fi
 
   local url fmt sha mem cpus disk_bus nic fixup
   if is_curated "$id"; then

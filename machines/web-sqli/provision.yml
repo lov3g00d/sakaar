@@ -1,0 +1,75 @@
+#cloud-config
+# Recipe for the "Web SQLi" machine. Provisioned once at build time; the VM
+# powers itself off when done so the build step knows it's finished.
+
+package_update: true
+packages:
+  - apache2
+  - php
+  - libapache2-mod-php
+  - php-sqlite3
+  - sqlite3
+  - sudo
+  - openssh-server
+
+ssh_pwauth: true
+
+users:
+  - default
+  - name: webadmin
+    groups: [users]
+    shell: /bin/bash
+    lock_passwd: false
+
+chpasswd:
+  expire: false
+  users:
+    - name: webadmin
+      password: Password123
+      type: text
+
+write_files:
+  # Vulnerable login: user/pass are concatenated straight into the SQL query.
+  - path: /var/www/html/index.php
+    content: |
+      <?php
+      $db = new SQLite3('/opt/app/users.db');
+      $msg = '';
+      if (isset($_POST['user'])) {
+        $u = $_POST['user']; $p = $_POST['pass'];
+        $q = "SELECT user,note FROM users WHERE user='$u' AND pass='$p'";
+        $row = @$db->query($q)->fetchArray();
+        if ($row) { $msg = "<h2>Welcome, ".$row['user']."</h2><p>Ops note: ".$row['note']."</p>"; }
+        else { $msg = "<p>Invalid credentials.</p>"; }
+      }
+      ?>
+      <!doctype html><title>Ops Portal</title>
+      <h1>Ops Portal</h1><?= $msg ?>
+      <form method=post>
+        user <input name=user> pass <input name=pass type=password>
+        <button>login</button>
+      </form>
+  - path: /home/webadmin/user.txt
+    content: "SAKAAR{sql_injection_leaks_the_way_in}\n"
+    owner: webadmin:webadmin
+    permissions: '0644'
+  - path: /root/root.txt
+    content: "SAKAAR{gtfobins_find_is_still_a_classic}\n"
+    permissions: '0600'
+  # Intended privilege escalation: passwordless sudo find (GTFOBins).
+  - path: /etc/sudoers.d/webadmin
+    content: "webadmin ALL=(root) NOPASSWD: /usr/bin/find\n"
+    permissions: '0440'
+
+runcmd:
+  - mkdir -p /opt/app
+  - sqlite3 /opt/app/users.db "CREATE TABLE users(user TEXT, pass TEXT, note TEXT); INSERT INTO users VALUES('admin','s3cr3t-$(openssl rand -hex 6)','SSH access for maintenance -> webadmin : Password123');"
+  - chown -R www-data:www-data /opt/app /var/www/html
+  - rm -f /var/www/html/index.html
+  - systemctl enable --now apache2 ssh
+  - touch /etc/cloud/cloud-init.disabled
+
+power_state:
+  mode: poweroff
+  timeout: 60
+  condition: true

@@ -24,6 +24,7 @@
           virt-viewer
           libvirt # virsh
           qemu # qemu-img
+          cloud-utils # cloud-localds (build cloud-init seeds)
           p7zip
           jq
           yq-go
