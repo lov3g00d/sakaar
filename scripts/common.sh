@@ -34,7 +34,8 @@ download() {
   [ -f "$dest" ] && have=$(stat -c %s "$dest")
   if [ "$srv" -gt 0 ] && [ "$have" -eq "$srv" ]; then return 0; fi
   step "fetching $(basename "$dest")"
-  curl -L --fail -C - -o "$dest" "$url"
+  # Resume partials; retry transient mirror errors (503/timeouts) with backoff.
+  curl -L --fail -C - --retry 8 --retry-delay 10 --retry-all-errors -o "$dest" "$url"
 }
 
 # yq scalar read; missing/null -> empty string.
