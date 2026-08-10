@@ -1,0 +1,17 @@
+# Nix / direnv
+.direnv/
+result
+result-*
+
+# libvirt VM images and downloads (large; never committed)
+vms/
+
+# Leftover runtime state / build artifacts
+.vagrant/
+__pycache__/
+*.pyc
+
+# Editor
+.idea/
+.vscode/
+*.swp

@@ -1,0 +1,12 @@
+id: mr-robot
+name: Mr. Robot 1
+url: https://download.vulnhub.com/mrrobot/mrRobot.ova
+sha256: ""
+format: ova
+difficulty: medium
+memory: 1024
+cpus: 1
+# 2015 CentOS box: IDE controller, PCnet NIC originally. e1000 + ide import cleanly.
+disk_bus: ide
+nic_model: e1000
+credits: VulnHub - Leon Johnson

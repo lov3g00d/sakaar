@@ -1,0 +1,27 @@
+name: sakaar
+
+# Isolated libvirt network with DHCP. Targets get an IP but no route to the
+# outside; the attacker reaches them here. No <forward> = host-only isolated.
+network:
+  name: sakaar-lab
+  bridge: virsakaar0
+  gateway: 10.10.10.1
+  netmask: 255.255.255.0
+  dhcp_start: 10.10.10.100
+  dhcp_end: 10.10.10.240
+
+# The graphical Kali attack box (official prebuilt qcow2, XFCE desktop).
+kali:
+  name: sakaar-kali
+  version: "2026.2"
+  url: https://cdimage.kali.org/current/kali-linux-2026.2-qemu-amd64.7z
+  sha256: c7c35588d05277c482c908bf7a136d348f76ffa68700b04ff53c0b217e6bd071
+  memory: 4096
+  cpus: 2
+
+# Defaults applied to VulnHub target boxes unless a catalog entry overrides.
+target_defaults:
+  memory: 1024
+  cpus: 1
+  nic_model: e1000
+  disk_bus: sata

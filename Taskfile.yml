@@ -1,0 +1,109 @@
+version: '3'
+
+silent: true
+
+vars:
+  S: '{{.ROOT_DIR}}/scripts'
+
+tasks:
+  default:
+    desc: List available tasks
+    cmds:
+      - task --list
+
+  doctor:
+    desc: Read-only host preflight (KVM, libvirt, tooling)
+    cmds:
+      - 'bash {{.S}}/doctor.sh'
+
+  # ------------------------------------------------------------- range lifecycle
+  up:
+    desc: Bring up the range - lab network + graphical Kali attacker
+    cmds:
+      - 'bash {{.S}}/lab.sh up'
+      - 'bash {{.S}}/attacker.sh up'
+
+  down:
+    desc: Stop the attacker (definitions and disks are kept)
+    cmds:
+      - 'bash {{.S}}/attacker.sh down'
+
+  status:
+    desc: Show the attacker and deployed targets with their IPs
+    cmds:
+      - 'bash {{.S}}/target.sh status'
+
+  targets:
+    desc: List the box catalog (deployable VulnHub machines)
+    cmds:
+      - 'bash {{.S}}/target.sh list'
+
+  # ------------------------------------------------------------------- attacker
+  attacker:console:
+    desc: Open the graphical Kali desktop
+    cmds:
+      - 'bash {{.S}}/attacker.sh console'
+
+  attacker:ssh:
+    desc: SSH into the Kali attacker
+    cmds:
+      - 'bash {{.S}}/attacker.sh ssh'
+
+  # -------------------------------------------------------------------- targets
+  deploy:
+    desc: Deploy a box (BOX=<id>, or run bare for an fzf picker)
+    cmds:
+      - 'bash {{.S}}/target.sh deploy {{.BOX}}'
+
+  target:start:
+    desc: Start a deployed box (BOX=<id>)
+    requires: {vars: [BOX]}
+    cmds:
+      - 'bash {{.S}}/target.sh start {{.BOX}}'
+
+  target:stop:
+    desc: Stop a deployed box (BOX=<id>)
+    requires: {vars: [BOX]}
+    cmds:
+      - 'bash {{.S}}/target.sh stop {{.BOX}}'
+
+  target:reset:
+    desc: Revert a box to its clean snapshot baseline (BOX=<id>)
+    requires: {vars: [BOX]}
+    cmds:
+      - 'bash {{.S}}/target.sh reset {{.BOX}}'
+
+  target:destroy:
+    desc: Remove a box entirely - VM, snapshots and disk (BOX=<id>)
+    requires: {vars: [BOX]}
+    cmds:
+      - 'bash {{.S}}/target.sh destroy {{.BOX}}'
+
+  target:console:
+    desc: Open a box's console (BOX=<id>)
+    requires: {vars: [BOX]}
+    cmds:
+      - 'bash {{.S}}/target.sh console {{.BOX}}'
+
+  # -------------------------------------------------------------------- network
+  net:up:
+    desc: Create/start the isolated lab network
+    cmds:
+      - 'bash {{.S}}/lab.sh up'
+
+  net:down:
+    desc: Stop the lab network
+    cmds:
+      - 'bash {{.S}}/lab.sh down'
+
+  # ------------------------------------------------------------------------ dev
+  lint:
+    desc: Static checks via the flake (shellcheck, nixfmt, yaml, nix lint)
+    cmds:
+      - nix flake check
+
+  fmt:
+    desc: Format Nix and shell sources
+    cmds:
+      - nixfmt flake.nix
+      - shfmt -w -i 2 -ci {{.S}}
