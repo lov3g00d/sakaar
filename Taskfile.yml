@@ -56,32 +56,27 @@ tasks:
       - 'bash {{.S}}/target.sh deploy {{.BOX}}'
 
   target:start:
-    desc: Start a deployed box (BOX=<id>)
-    requires: {vars: [BOX]}
+    desc: Start a deployed box (BOX=<id>, or run bare to fzf-pick)
     cmds:
       - 'bash {{.S}}/target.sh start {{.BOX}}'
 
   target:stop:
-    desc: Stop a deployed box (BOX=<id>)
-    requires: {vars: [BOX]}
+    desc: Stop a deployed box (BOX=<id>, or run bare to fzf-pick)
     cmds:
       - 'bash {{.S}}/target.sh stop {{.BOX}}'
 
   target:reset:
-    desc: Revert a box to its clean snapshot baseline (BOX=<id>)
-    requires: {vars: [BOX]}
+    desc: Revert a box to its clean snapshot baseline (BOX=<id>, or run bare to fzf-pick)
     cmds:
       - 'bash {{.S}}/target.sh reset {{.BOX}}'
 
   target:destroy:
-    desc: Remove a box entirely - VM, snapshots and disk (BOX=<id>)
-    requires: {vars: [BOX]}
+    desc: Remove a box entirely - VM, snapshots and disk (BOX=<id>, or run bare to fzf-pick)
     cmds:
       - 'bash {{.S}}/target.sh destroy {{.BOX}}'
 
   target:console:
-    desc: Open a box's console (BOX=<id>)
-    requires: {vars: [BOX]}
+    desc: Open a box's console (BOX=<id>, or run bare to fzf-pick)
     cmds:
       - 'bash {{.S}}/target.sh console {{.BOX}}'
 

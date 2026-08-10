@@ -25,6 +25,37 @@ require_box() {
   [ -f "$(cat_file "$1")" ] || die "unknown box '$1'. Run 'task targets' to list them."
 }
 
+# Boxes currently imported as VMs.
+deployed_ids() {
+  local id
+  for id in $(cat_ids); do
+    domain_exists "$(dom_of "$id")" && echo "$id"
+  done
+}
+
+# Resolve the target box into $BOX: use the given arg, else fzf-pick from a
+# scope (catalog = all boxes, deployed = imported boxes). Runs in the main shell
+# so die/exit behave; a cancelled picker exits cleanly.
+BOX=""
+choose() {
+  local scope="$1" arg="${2:-}" ids sel id
+  if [ -n "$arg" ]; then
+    require_box "$arg"
+    BOX="$arg"
+    return
+  fi
+  command -v fzf >/dev/null 2>&1 || die "specify a box (BOX=<id>); run 'task targets' to list."
+  if [ "$scope" = deployed ]; then ids=$(deployed_ids); else ids=$(cat_ids); fi
+  [ -n "$ids" ] || die "no ${scope} boxes available."
+  sel=$(
+    for id in $ids; do
+      printf '%s\t%s\t%s\n' "$id" "$(cat_get "$id" .name)" "$(cat_get "$id" .difficulty)"
+    done | column -t -s $'\t' | fzf --prompt="${scope} box> " --height=45% --reverse --header='pick a box'
+  ) || true
+  [ -n "$sel" ] || exit 0
+  BOX=$(awk '{print $1}' <<<"$sel")
+}
+
 # Catalog value, falling back to the lab.yml default.
 field() {
   local v
@@ -62,11 +93,7 @@ cmd_status() {
 }
 
 deploy() {
-  local id="${1:-}"
-  if [ -z "$id" ]; then
-    command -v fzf >/dev/null 2>&1 || die "no box given. Usage: task deploy BOX=<id>"
-    id=$(cat_ids | fzf --prompt='deploy box> ' --height=40% --reverse) || return 0
-  fi
+  local id="$1"
   require_box "$id"
   local dom
   dom=$(dom_of "$id")
@@ -140,29 +167,32 @@ deploy() {
 case "${1:-list}" in
   list) cmd_list ;;
   status) cmd_status ;;
-  deploy) deploy "${2:-}" ;;
+  deploy)
+    choose catalog "${2:-}"
+    deploy "$BOX"
+    ;;
   start)
-    require_box "${2:-}"
-    virsh start "$(dom_of "$2")"
+    choose deployed "${2:-}"
+    virsh start "$(dom_of "$BOX")"
     ;;
   stop)
-    require_box "${2:-}"
-    virsh shutdown "$(dom_of "$2")"
+    choose deployed "${2:-}"
+    virsh shutdown "$(dom_of "$BOX")"
     ;;
   reset)
-    require_box "${2:-}"
-    virsh snapshot-revert "$(dom_of "$2")" clean && msg "reverted $2 to its clean baseline"
+    choose deployed "${2:-}"
+    virsh snapshot-revert "$(dom_of "$BOX")" clean && msg "reverted $BOX to its clean baseline"
     ;;
   destroy)
-    require_box "${2:-}"
-    virsh destroy "$(dom_of "$2")" 2>/dev/null || true
-    virsh undefine "$(dom_of "$2")" --snapshots-metadata --remove-all-storage 2>/dev/null ||
-      virsh undefine "$(dom_of "$2")" 2>/dev/null || true
-    msg "destroyed $2"
+    choose deployed "${2:-}"
+    virsh destroy "$(dom_of "$BOX")" 2>/dev/null || true
+    virsh undefine "$(dom_of "$BOX")" --snapshots-metadata --remove-all-storage 2>/dev/null ||
+      virsh undefine "$(dom_of "$BOX")" 2>/dev/null || true
+    msg "destroyed $BOX"
     ;;
   console)
-    require_box "${2:-}"
-    virt-viewer "$(dom_of "$2")" >/dev/null 2>&1 &
+    choose deployed "${2:-}"
+    virt-viewer "$(dom_of "$BOX")" >/dev/null 2>&1 &
     ;;
   ip)
     require_box "${2:-}"
