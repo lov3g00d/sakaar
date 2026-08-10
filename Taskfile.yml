@@ -33,20 +33,10 @@ tasks:
     cmds:
       - 'bash {{.S}}/target.sh status'
 
-  targets:
-    desc: List curated boxes (+ the full VulnHub index count)
+  machines:
+    desc: List authored machines with their build/deploy state
     cmds:
       - 'bash {{.S}}/target.sh list'
-
-  vulnhub:sync:
-    desc: Rebuild the VulnHub box index from download.vulnhub.com
-    cmds:
-      - 'bash {{.S}}/vulnhub-sync.sh'
-
-  machines:
-    desc: List authored machines (build-your-own vulnerable boxes)
-    cmds:
-      - 'bash {{.S}}/build.sh list'
 
   build:
     desc: Build an authored machine from its recipe (MACHINE=<id>, or run bare to fzf-pick)
@@ -66,7 +56,7 @@ tasks:
 
   # -------------------------------------------------------------------- targets
   deploy:
-    desc: Deploy a box (BOX=<id>, or run bare for an fzf picker)
+    desc: Deploy a built machine (BOX=<id>, or run bare to fzf-pick)
     cmds:
       - 'bash {{.S}}/target.sh deploy {{.BOX}}'
 

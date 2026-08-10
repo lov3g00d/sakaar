@@ -60,6 +60,16 @@ write_files:
   - path: /etc/sudoers.d/webadmin
     content: "webadmin ALL=(root) NOPASSWD: /usr/bin/find\n"
     permissions: '0440'
+  # DHCP on any ethernet NIC (name/slot-agnostic), applied by cloud-init every
+  # boot - so the box networks the same at build and after deploy.
+  - path: /etc/cloud/cloud.cfg.d/99-sakaar-network.cfg
+    content: |
+      network:
+        version: 2
+        ethernets:
+          sakaar-any:
+            match: {name: "e*"}
+            dhcp4: true
 
 runcmd:
   - mkdir -p /opt/app
@@ -67,7 +77,6 @@ runcmd:
   - chown -R www-data:www-data /opt/app /var/www/html
   - rm -f /var/www/html/index.html
   - systemctl enable --now apache2 ssh
-  - touch /etc/cloud/cloud-init.disabled
 
 power_state:
   mode: poweroff

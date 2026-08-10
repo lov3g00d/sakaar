@@ -6,7 +6,6 @@ set -euo pipefail
 ROOT=${SAKAAR_ROOT:-$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)}
 LAB="$ROOT/config/lab.yml"
 VMS="$ROOT/vms"
-CATALOG="$ROOT/catalog"
 MACHINES="$ROOT/machines"
 
 # Every libvirt call targets the system daemon (where the range VMs live).

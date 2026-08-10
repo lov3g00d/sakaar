@@ -19,13 +19,6 @@ kali:
   memory: 4096
   cpus: 2
 
-# Defaults applied to VulnHub target boxes unless a catalog entry overrides.
-target_defaults:
-  memory: 1024
-  cpus: 1
-  nic_model: e1000
-  disk_bus: sata
-
 # Base cloud images for building authored machines (official, reliable mirrors).
 bases:
   debian12:

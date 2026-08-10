@@ -1,6 +1,10 @@
 ---
 extends: default
 
+# Machine recipes are cloud-init files with embedded code, not config YAML.
+ignore: |
+  **/provision.yml
+
 rules:
   line-length: disable
   document-start: disable
