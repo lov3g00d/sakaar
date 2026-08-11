@@ -1,0 +1,50 @@
+#cloud-config
+# Recipe for CHANGEME. Provisioned once at build time; the VM powers itself off
+# when done. Describe ONLY the challenge here - the build engine injects the
+# networking and the flags (user.txt / root.txt), so do not add them.
+
+package_update: true
+packages:
+  - openssh-server
+  # add the vuln's dependencies (e.g. apache2, php, ...)
+
+ssh_pwauth: true
+
+users:
+  - default
+  - name: CHANGEME # must equal machine.yml foothold_user
+    groups: [users]
+    shell: /bin/bash
+    lock_passwd: false
+
+write_files:
+  # The vulnerable component goes here.
+
+  # Intended privilege escalation (example: passwordless sudo on a GTFOBin).
+  - path: /etc/sudoers.d/CHANGEME
+    content: "CHANGEME ALL=(root) NOPASSWD: /usr/bin/CHANGEME\n"
+    permissions: '0440'
+
+  # Generate the foothold secret at build and leak it through the vuln, so the
+  # intended path is the only way in. A weak/rockyou password lets an attacker
+  # skip the vuln by brute-forcing SSH. Keep this in a script, not runcmd: a
+  # runcmd string containing " : " (colon-space) is parsed as a YAML dict and
+  # aborts the whole runcmd.
+  - path: /opt/app/setup.sh
+    permissions: '0700'
+    content: |
+      #!/bin/bash
+      set -eu
+      pw=$(LC_ALL=C tr -dc 'A-Za-z0-9' </dev/urandom | head -c 20)
+      echo "CHANGEME:$pw" | chpasswd
+      # ... plant $pw where the vuln will leak it ...
+
+runcmd:
+  - bash /opt/app/setup.sh
+  - rm -f /opt/app/setup.sh
+  # - systemctl enable --now <the vulnerable service> ssh
+
+power_state:
+  mode: poweroff
+  timeout: 60
+  condition: true

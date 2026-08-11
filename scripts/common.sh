@@ -53,11 +53,16 @@ domain_exists() { virsh dominfo "$1" >/dev/null 2>&1; }
 # Authored machines (built locally from a recipe).
 mach_dir() { echo "$MACHINES/$1"; }
 mach_get() { yqf "$(mach_dir "$1")/machine.yml" "$2"; }
-is_machine() { [ -f "$(mach_dir "$1")/machine.yml" ]; }
+is_machine() {
+  case "$1" in _*) return 1 ;; esac # _-prefixed dirs are scaffolding, not machines
+  [ -f "$(mach_dir "$1")/machine.yml" ]
+}
 mach_ids() {
   [ -d "$MACHINES" ] || return 0
-  local d
+  local d b
   for d in "$MACHINES"/*/; do
-    [ -f "$d/machine.yml" ] && basename "$d"
+    b=$(basename "$d")
+    case "$b" in _*) continue ;; esac
+    [ -f "$d/machine.yml" ] && printf '%s\n' "$b"
   done | sort
 }

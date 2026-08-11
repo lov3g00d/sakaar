@@ -1,0 +1,9 @@
+id: CHANGEME
+name: Human Readable Name
+description: One line - the vuln class and the privesc, e.g. "SSTI foothold then a cron-job privilege escalation to root".
+difficulty: easy
+base: debian12
+memory: 1024
+cpus: 1
+foothold_user: CHANGEME
+tags: [web, CHANGEME]
