@@ -5,4 +5,5 @@ difficulty: easy
 base: debian12
 memory: 1024
 cpus: 1
+foothold_user: webadmin
 tags: [web, sqli, privesc]

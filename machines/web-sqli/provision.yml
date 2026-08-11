@@ -21,13 +21,6 @@ users:
     shell: /bin/bash
     lock_passwd: false
 
-chpasswd:
-  expire: false
-  users:
-    - name: webadmin
-      password: Password123
-      type: text
-
 write_files:
   # Vulnerable login: user/pass are concatenated straight into the SQL query.
   - path: /var/www/html/index.php
@@ -49,32 +42,33 @@ write_files:
         user <input name=user> pass <input name=pass type=password>
         <button>login</button>
       </form>
-  - path: /home/webadmin/user.txt
-    content: "SAKAAR{sql_injection_leaks_the_way_in}\n"
-    owner: webadmin:webadmin
-    permissions: '0644'
-  - path: /root/root.txt
-    content: "SAKAAR{gtfobins_find_is_still_a_classic}\n"
-    permissions: '0600'
   # Intended privilege escalation: passwordless sudo find (GTFOBins).
   - path: /etc/sudoers.d/webadmin
     content: "webadmin ALL=(root) NOPASSWD: /usr/bin/find\n"
     permissions: '0440'
-  # DHCP on any ethernet NIC (name/slot-agnostic), applied by cloud-init every
-  # boot - so the box networks the same at build and after deploy.
-  - path: /etc/cloud/cloud.cfg.d/99-sakaar-network.cfg
+  # Generate a strong password at build and leak it through the SQLi note, so
+  # the injection is the only foothold - a weak, rockyou-crackable password
+  # would let an attacker skip the vuln by brute-forcing SSH. Logic lives in a
+  # script (not runcmd) so the password text can't be misparsed as YAML.
+  - path: /opt/app/setup.sh
+    permissions: '0700'
     content: |
-      network:
-        version: 2
-        ethernets:
-          sakaar-any:
-            match: {name: "e*"}
-            dhcp4: true
+      #!/bin/bash
+      set -eu
+      pw=$(LC_ALL=C tr -dc 'A-Za-z0-9' </dev/urandom | head -c 20)
+      hash=$(LC_ALL=C tr -dc a-f0-9 </dev/urandom | head -c 16)
+      echo "webadmin:$pw" | chpasswd
+      mkdir -p /opt/app
+      sqlite3 /opt/app/users.db <<SQL
+      CREATE TABLE users(user TEXT, pass TEXT, note TEXT);
+      INSERT INTO users VALUES('admin','$hash','Maintenance account webadmin, SSH password is $pw');
+      SQL
+      chown -R www-data:www-data /opt/app
 
 runcmd:
-  - mkdir -p /opt/app
-  - sqlite3 /opt/app/users.db "CREATE TABLE users(user TEXT, pass TEXT, note TEXT); INSERT INTO users VALUES('admin','s3cr3t-$(openssl rand -hex 6)','SSH access for maintenance -> webadmin : Password123');"
-  - chown -R www-data:www-data /opt/app /var/www/html
+  - bash /opt/app/setup.sh
+  - rm -f /opt/app/setup.sh
+  - chown -R www-data:www-data /var/www/html
   - rm -f /var/www/html/index.html
   - systemctl enable --now apache2 ssh
 
