@@ -1,0 +1,101 @@
+#cloud-config
+# Recipe for "Ledger". Provisioned once at build time; the VM powers itself off
+# when done. Describe ONLY the challenge here - the build engine injects the
+# networking and the flags (user.txt / root.txt), so do not add them.
+
+package_update: true
+packages:
+  - apache2
+  - php
+  - libapache2-mod-php
+  - php-sqlite3
+  - sqlite3
+  - sudo
+  - openssh-server
+  - python3
+  - libcap2-bin
+
+ssh_pwauth: true
+
+users:
+  - default
+  - name: svc
+    groups: [users]
+    shell: /bin/bash
+    lock_passwd: false
+
+write_files:
+  # Put the admin sbin dirs on every login shell's PATH (as many hosts do), so
+  # the foothold user can run standard tooling like getcap. Debian otherwise
+  # keeps /usr/sbin out of a non-root user's PATH.
+  - path: /etc/profile.d/10-sbin-path.sh
+    permissions: '0644'
+    content: |
+      export PATH="/usr/sbin:/sbin:$PATH"
+
+  # Landing page: links the visitor to their own account by id.
+  - path: /var/www/html/index.php
+    content: |
+      <!doctype html><title>Ledger - Customer Portal</title>
+      <h1>Ledger</h1>
+      <p>Welcome back. <a href="profile.php?id=2">View your account</a>.</p>
+
+  # The IDOR: the account id comes straight from the URL with no ownership
+  # check, so any account is viewable by changing it. The query is a prepared
+  # statement on purpose - the flaw is access control, not injection.
+  - path: /var/www/html/profile.php
+    content: |
+      <?php
+      $db = new SQLite3('/opt/app/app.db');
+      $id = isset($_GET['id']) ? (int)$_GET['id'] : 1;
+      $stmt = $db->prepare('SELECT name, role, note FROM accounts WHERE id = :id');
+      $stmt->bindValue(':id', $id, SQLITE3_INTEGER);
+      $row = $stmt->execute()->fetchArray();
+      ?>
+      <!doctype html><title>Ledger - Account</title>
+      <h1>Account #<?= $id ?></h1>
+      <?php if ($row): ?>
+        <h2><?= htmlspecialchars($row['name']) ?> (<?= htmlspecialchars($row['role']) ?>)</h2>
+        <p>Note: <?= htmlspecialchars($row['note']) ?></p>
+      <?php else: ?>
+        <p>No such account.</p>
+      <?php endif; ?>
+      <p><a href="profile.php?id=<?= $id + 1 ?>">next</a></p>
+
+  # Generate the SSH password at build and leak it through the service account's
+  # note, reachable only via the IDOR, so the access-control flaw is the only
+  # foothold. A weak, rockyou-crackable password would let an attacker skip the
+  # vuln by brute-forcing SSH. Logic lives in a script, not runcmd, so the
+  # password text cannot be misparsed as YAML.
+  - path: /opt/app/setup.sh
+    permissions: '0700'
+    content: |
+      #!/bin/bash
+      set -eu
+      pw=$(LC_ALL=C tr -dc 'A-Za-z0-9' </dev/urandom | head -c 20)
+      echo "svc:$pw" | chpasswd
+      mkdir -p /opt/app
+      sqlite3 /opt/app/app.db <<SQL
+      CREATE TABLE accounts(id INTEGER PRIMARY KEY, name TEXT, role TEXT, note TEXT);
+      INSERT INTO accounts VALUES(1,'svc','service','Service account svc - SSH recovery password is $pw');
+      INSERT INTO accounts VALUES(2,'jsmith','customer','Standard customer account');
+      INSERT INTO accounts VALUES(3,'mgarcia','customer','Standard customer account');
+      SQL
+      chown -R www-data:www-data /opt/app
+      # Intended privesc: a python helper the svc account uses, granted the
+      # setuid capability. A file capability is not a SUID bit - find it with
+      # getcap, not find -perm.
+      mkdir -p /opt/tools
+      cp "$(readlink -f "$(command -v python3)")" /opt/tools/pyhelper
+      setcap cap_setuid+ep /opt/tools/pyhelper
+
+runcmd:
+  - bash /opt/app/setup.sh
+  - rm -f /opt/app/setup.sh
+  - rm -f /var/www/html/index.html
+  - systemctl enable --now apache2 ssh
+
+power_state:
+  mode: poweroff
+  timeout: 60
+  condition: true

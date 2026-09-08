@@ -1,0 +1,10 @@
+id: web-idor
+name: Ledger
+description: A customer portal that trusts the account id in the URL (IDOR) and exposes a service account's SSH password; foothold then a Linux capabilities privilege escalation to root.
+difficulty: easy
+owasp: "A01:2021 Broken Access Control"
+base: debian12
+memory: 1024
+cpus: 1
+foothold_user: svc
+tags: [web, idor, access-control, capabilities, privesc]
