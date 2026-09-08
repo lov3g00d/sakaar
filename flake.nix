@@ -79,7 +79,7 @@
           '';
 
           yamllint = pkgs.runCommand "sakaar-yamllint" { } ''
-            ${pkgs.yamllint}/bin/yamllint -c ${self}/.yamllint ${self}/config ${self}/machines
+            ${pkgs.yamllint}/bin/yamllint -c ${self}/.yamllint ${self}/config ${self}/machines ${self}/core
             touch $out
           '';
 

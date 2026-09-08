@@ -11,6 +11,10 @@ A machine is a directory under `machines/<id>/` with three files:
 Copy `machines/_template/` to start. Directories whose name begins with `_` are
 scaffolding and are ignored by `task machines`, `build`, and `deploy`.
 
+Persistent range infrastructure (bastions) lives under `core/`, not `machines/`.
+Core machines use the same recipe shape but are built without flags and stood up
+by `task up`; they are never the challenge. See `core/README.md`.
+
 ## The one rule: engine owns plumbing, recipe owns the challenge
 
 The build engine (`scripts/build.sh`) injects the two things every machine needs

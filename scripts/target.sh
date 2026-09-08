@@ -15,17 +15,9 @@ require_box() {
   is_machine "$1" || die "unknown machine '$1'. Run 'task machines' to list them."
 }
 
-# Deployed target VMs, by id (excludes the attacker).
+# Deployed target VMs, by id (excludes the attacker and the core).
 deployed_ids() {
   virsh -q list --all --name 2>/dev/null | sed -n 's/^sakaar-tgt-//p' | sort
-}
-
-# The lab-net IP a deployed machine currently holds (via its NIC MAC).
-lease_ip() {
-  local dom="$1" mac
-  mac=$(virsh -q domiflist "$dom" 2>/dev/null | awk -v n="$NET" '$3 == n {print $5}' | head -1)
-  [ -n "$mac" ] || return 0
-  virsh -q net-dhcp-leases "$NET" 2>/dev/null | awk -v m="$mac" 'index($0, m) {print $5}' | cut -d/ -f1 | head -1
 }
 
 BOX=""
@@ -66,6 +58,27 @@ cmd_list() {
 cmd_status() {
   printf '%sattacker:%s\n' "$B" "$Z"
   virsh list --all | grep -E "Name|sakaar-kali|--" || true
+
+  local cids
+  cids=$(core_ids)
+  if [ -n "$cids" ]; then
+    printf '\n%score (persistent infrastructure):%s\n' "$B" "$Z"
+    {
+      printf 'MACHINE\tNAME\tSTATE\tIP\n'
+      local id dom ip
+      for id in $cids; do
+        dom="sakaar-core-$id"
+        if domain_exists "$dom"; then
+          ip=$(lease_ip "$dom")
+          [ -n "$ip" ] || ip='-'
+          printf '%s\t%s\t%s\t%s\n' "$id" "$(core_get "$id" .name)" "$(domain_state "$dom")" "$ip"
+        else
+          printf '%s\t%s\t%s\t%s\n' "$id" "$(core_get "$id" .name)" 'not up' '-'
+        fi
+      done
+    } | column -t -s $'\t'
+  fi
+
   printf '\n%sdeployed targets:%s\n' "$B" "$Z"
   local ids
   ids=$(deployed_ids)
@@ -128,6 +141,20 @@ case "${1:-list}" in
     choose deployed "${2:-}"
     virsh snapshot-revert "$(dom_of "$BOX")" clean && msg "reverted $BOX to its clean baseline"
     ;;
+  reset-all)
+    ids=$(deployed_ids)
+    [ -n "$ids" ] || {
+      msg "no deployed targets to reset"
+      exit 0
+    }
+    for id in $ids; do
+      if virsh snapshot-revert "$(dom_of "$id")" clean 2>/dev/null; then
+        msg "reverted $id"
+      else
+        msg "skipped $id (no clean snapshot)"
+      fi
+    done
+    ;;
   destroy)
     choose deployed "${2:-}"
     virsh destroy "$(dom_of "$BOX")" 2>/dev/null || true
@@ -143,5 +170,5 @@ case "${1:-list}" in
     require_box "${2:-}"
     lease_ip "$(dom_of "$2")"
     ;;
-  *) die "usage: target.sh {list|status|deploy|start|stop|reset|destroy|console|ip} [machine]" ;;
+  *) die "usage: target.sh {list|status|deploy|start|stop|reset|reset-all|destroy|console|ip} [machine]" ;;
 esac

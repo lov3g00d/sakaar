@@ -2,6 +2,7 @@ id: CHANGEME
 name: Human Readable Name
 description: One line - the vuln class and the privesc, e.g. "SSTI foothold then a cron-job privilege escalation to root".
 difficulty: easy
+owasp: "" # optional, e.g. "A03:2021 Injection" - the OWASP Top 10 category this box teaches
 base: debian12
 memory: 1024
 cpus: 1

@@ -1,0 +1,10 @@
+id: web-backup
+name: Backup Blunder
+description: A leftover deploy-script backup is served as plaintext and leaks SSH credentials; foothold then a world-writable root cron job for privilege escalation to root.
+difficulty: easy
+owasp: "A05:2021 Security Misconfiguration"
+base: debian12
+memory: 1024
+cpus: 1
+foothold_user: dev
+tags: [web, disclosure, cron, privesc]

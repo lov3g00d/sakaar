@@ -53,8 +53,9 @@ else
 fi
 kali=$(virsh domstate sakaar-kali 2>/dev/null || echo "not deployed")
 ok attacker "kali: ${kali}"
-n=$(find "$ROOT/catalog" -maxdepth 1 -name '*.yml' 2>/dev/null | wc -l)
-ok catalog "${n} box(es) available"
+m=$(find "$ROOT/machines" -mindepth 1 -maxdepth 1 -type d ! -name '_*' 2>/dev/null | wc -l)
+c=$(find "$ROOT/core" -mindepth 1 -maxdepth 1 -type d ! -name '_*' 2>/dev/null | wc -l)
+ok machines "${m} authored, ${c} core"
 
 echo
 echo "== resources =="

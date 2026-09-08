@@ -4,10 +4,10 @@
   <img src="assets/sakaar-banner.png" alt="Sakaar - a local cyber range" width="100%">
 </p>
 
-A local, **libvirt-native** cyber range: a graphical Kali attack box plus a
-one-command spinner for vulnerable **VulnHub** target VMs, all on an isolated
-KVM network. Think a self-hosted, offline HTB/THM — Sakaar is the arena, the
-targets are the contenders you throw into it.
+A local, **libvirt-native** cyber range: a graphical Kali attack box, a
+persistent core of range infrastructure, and build-your-own vulnerable target
+VMs, all on an isolated KVM network. Think a self-hosted, offline HTB/THM.
+Sakaar is the arena; the targets are the contenders you throw into it.
 
 ## Authorization and safety
 
@@ -20,16 +20,19 @@ of this at systems you do not own.
 ## How it works
 
 ```
-Host (NixOS, KVM/libvirt)
-  └─ network sakaar-lab  (isolated + DHCP, 10.10.10.0/24)
-       ├─ sakaar-kali    graphical XFCE, dual-homed (NAT for updates + lab net)
-       └─ targets        VulnHub boxes, imported + isolated, DHCP-assigned IPs
+Host (KVM/libvirt)
+  └─ network sakaar-lab   (isolated + DHCP, 10.10.10.0/24)
+       ├─ sakaar-kali     graphical XFCE, dual-homed (NAT for updates + lab net)
+       ├─ sakaar-core-*   the persistent core (range portal), always up
+       └─ sakaar-tgt-*    challenge machines, built from recipes, deployed on demand
 ```
 
 - **Kali** is the official prebuilt qcow2 (full desktop) imported into libvirt.
-- **Targets** are VulnHub `.ova` boxes: downloaded, `qemu-img`-converted to
-  qcow2, and imported with `virt-install` (e1000 NIC for legacy compatibility).
-- **Reset** is an instant libvirt snapshot revert.
+- **The core** (`core/`) is persistent infrastructure that `task up` stands up
+  and keeps live. It is what makes Sakaar an arena rather than a pile of boxes.
+- **Targets** (`machines/`) are authored in-repo as cloud-init recipes and built
+  deterministically from official base cloud images (no external box mirror).
+- **Reset** is an instant libvirt snapshot revert, per box or across the arena.
 
 ## Prerequisites
 
@@ -49,49 +52,43 @@ git clone <repo> sakaar && cd sakaar
 nix develop
 
 task doctor            # host preflight
-task up                # lab network + graphical Kali (first run downloads Kali)
+task up                # lab network + Kali + persistent core (first run downloads Kali)
 task attacker:console  # open the Kali desktop  (login: kali / kali)
 
-task targets           # the box catalog
-task deploy            # pick a box (fzf) - or: task deploy BOX=mr-robot
-task status            # attacker + targets and their lab IPs
+task machines                 # authored machines and their build/deploy state
+task build  MACHINE=web-sqli  # build a machine from its recipe
+task deploy BOX=web-sqli      # deploy it onto the isolated lab net (or run bare to fzf-pick)
+task status                   # attacker, core, and targets with their lab IPs
 ```
 
 Then attack the target from Kali by its lab IP. When done:
 
 ```bash
-task target:reset   BOX=mr-robot   # snapshot back to a clean box
-task target:destroy BOX=mr-robot   # remove it entirely
+task target:reset   BOX=web-sqli   # snapshot back to a clean box
+task target:destroy BOX=web-sqli   # remove it entirely
+task reset                         # revert the whole arena (core + targets)
 ```
 
-## Adding boxes
+## Authoring a machine
 
-Drop a file in `catalog/<id>.yml` — no central files to edit:
-
-```yaml
-id: my-box
-name: My Box
-url: https://download.vulnhub.com/.../my-box.ova
-sha256: ""           # optional
-format: ova          # ova | zip | qcow2
-difficulty: easy
-memory: 1024
-cpus: 1
-disk_bus: sata       # ide/sata/virtio - match the box (see its .ovf)
-nic_model: e1000     # e1000 imports most VulnHub boxes cleanly
-# fixup: '--run-command "..."'   # optional virt-customize for pinned NIC configs
-```
-
-VulnHub boxes are community snowflakes; `e1000` + the right `disk_bus` handles
-most, and the optional `fixup` (via `libguestfs`) covers the rest.
+A machine is a directory under `machines/<id>/` with three files: `machine.yml`
+(metadata), `provision.yml` (the cloud-init recipe describing only the
+challenge), and `solution.md` (the walkthrough). The build engine injects the
+networking and the flags, so recipes never hardcode them. Copy
+`machines/_template/` to start, and see `docs/authoring.md` for the full guide
+and the HTB/THM design rules. Persistent range infrastructure lives under
+`core/` (see `core/README.md`).
 
 ## Commands
 
 | Command | Does |
 |---|---|
-| `task doctor` / `task up` / `task down` | preflight / bring up / stop |
-| `task targets` / `task deploy [BOX=id]` | list catalog / deploy a box |
-| `task status` | attacker + targets with lab IPs |
+| `task doctor` / `task up` / `task down` | preflight / bring up arena / stop attacker + core |
+| `task machines` / `task build MACHINE=<id>` | list authored machines / build one from its recipe |
+| `task deploy [BOX=id]` | deploy a built machine onto the lab net |
+| `task status` | attacker, core, and targets with lab IPs |
+| `task reset` | revert the whole arena to clean baselines |
 | `task attacker:console` / `attacker:ssh` | graphical desktop / shell |
-| `task target:start|stop|reset|destroy|console BOX=<id>` | box lifecycle |
-| `task net:up|down` | lab network only |
+| `task target:start\|stop\|reset\|destroy\|console BOX=<id>` | box lifecycle |
+| `task core:reset\|rebuild\|destroy` | persistent core lifecycle |
+| `task net:up\|down` | lab network only |

@@ -1,0 +1,68 @@
+#cloud-config
+# Recipe for the range bastion: persistent infrastructure, not a challenge. The
+# build engine injects networking but no flags (core machines carry none).
+# Provisioned once at build time; the VM powers itself off when done.
+
+package_update: true
+packages:
+  - nginx
+
+write_files:
+  - path: /var/www/html/index.html
+    permissions: '0644'
+    content: |
+      <!doctype html>
+      <html lang="en">
+      <head>
+        <meta charset="utf-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1">
+        <title>Sakaar Range Portal</title>
+        <style>
+          :root { color-scheme: dark; }
+          body { font: 16px/1.6 system-ui, sans-serif; max-width: 52rem;
+                 margin: 2rem auto; padding: 0 1rem; background: #0f1216; color: #d7dde3; }
+          h1 { color: #7cc4ff; margin-bottom: 0; }
+          h2 { color: #9ad; margin-top: 2rem; border-bottom: 1px solid #2a3038; padding-bottom: .3rem; }
+          .sub { color: #8a94a0; margin-top: .2rem; }
+          code { background: #1a1f26; padding: .1rem .35rem; border-radius: 4px; }
+          table { border-collapse: collapse; width: 100%; margin-top: .5rem; }
+          th, td { text-align: left; padding: .4rem .6rem; border-bottom: 1px solid #2a3038; }
+          th { color: #9ad; }
+          .note { background: #1a1f26; border-left: 3px solid #7cc4ff; padding: .6rem 1rem; border-radius: 4px; }
+        </style>
+      </head>
+      <body>
+        <h1>Sakaar</h1>
+        <p class="sub">A local, isolated cyber range. This host is the range bastion.</p>
+
+        <h2>How to play</h2>
+        <p>Deploy a target from the host with <code>task deploy</code>, find its lab IP with
+        <code>task status</code>, then attack it from this Kali box by that IP. Every box has
+        two flags in the form <code>SAKAAR{...}</code>: a user flag on the foothold, a root flag
+        after privilege escalation. Each box ships with a matching guide.</p>
+
+        <h2>Beginner curriculum</h2>
+        <table>
+          <tr><th>Tier</th><th>What you practise</th></tr>
+          <tr><td>Intro</td><td>Enumeration, exposed services, reading a leaked secret</td></tr>
+          <tr><td>Easy (web)</td><td>One box per OWASP Top 10 category</td></tr>
+          <tr><td>Easy (privesc)</td><td>sudo/GTFOBins, SUID, cron, group escalation</td></tr>
+          <tr><td>Medium</td><td>Command injection, NoSQL, SSRF, LFI chains, network services</td></tr>
+        </table>
+
+        <div class="note" style="margin-top: 2rem;">
+          This range is isolated with no route off the lab network. Everything here is for
+          authorised training against the machines that are part of this lab. Do not point any
+          of it at systems you do not own.
+        </div>
+      </body>
+      </html>
+
+runcmd:
+  - rm -f /var/www/html/index.nginx-debian.html
+  - systemctl enable --now nginx
+
+power_state:
+  mode: poweroff
+  timeout: 60
+  condition: true

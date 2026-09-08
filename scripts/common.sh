@@ -7,6 +7,7 @@ ROOT=${SAKAAR_ROOT:-$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)}
 LAB="$ROOT/config/lab.yml"
 VMS="$ROOT/vms"
 MACHINES="$ROOT/machines"
+CORE="$ROOT/core"
 
 # Every libvirt call targets the system daemon (where the range VMs live).
 export LIBVIRT_DEFAULT_URI="qemu:///system"
@@ -65,4 +66,31 @@ mach_ids() {
     case "$b" in _*) continue ;; esac
     [ -f "$d/machine.yml" ] && printf '%s\n' "$b"
   done | sort
+}
+
+# Core machines: persistent range infrastructure (bastions). Same recipe shape
+# as challenge machines but built without flags and stood up by `task up`.
+core_dir() { echo "$CORE/$1"; }
+core_get() { yqf "$(core_dir "$1")/machine.yml" "$2"; }
+is_core() {
+  case "$1" in _*) return 1 ;; esac
+  [ -f "$(core_dir "$1")/machine.yml" ]
+}
+core_ids() {
+  [ -d "$CORE" ] || return 0
+  local d b
+  for d in "$CORE"/*/; do
+    b=$(basename "$d")
+    case "$b" in _*) continue ;; esac
+    [ -f "$d/machine.yml" ] && printf '%s\n' "$b"
+  done | sort
+}
+
+# The lab-net IP a domain currently holds, via its NIC MAC and the net's leases.
+lease_ip() {
+  local dom="$1" net mac
+  net=$(lab '.network.name')
+  mac=$(virsh -q domiflist "$dom" 2>/dev/null | awk -v n="$net" '$3 == n {print $5}' | head -1)
+  [ -n "$mac" ] || return 0
+  virsh -q net-dhcp-leases "$net" 2>/dev/null | awk -v m="$mac" 'index($0, m) {print $5}' | cut -d/ -f1 | head -1
 }

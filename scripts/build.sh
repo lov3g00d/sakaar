@@ -16,14 +16,21 @@ ensure_base() {
 }
 
 build() {
-  local id="$1"
-  is_machine "$id" || die "no machine '$id' (expected machines/$id/machine.yml)"
-  local dir base out prov seed dom ud
-  dir=$(mach_dir "$id")
+  local id="$1" dir role
+  if is_core "$id"; then
+    dir=$(core_dir "$id")
+    role=core
+  elif is_machine "$id"; then
+    dir=$(mach_dir "$id")
+    role=machine
+  else
+    die "no machine '$id' (expected machines/$id/machine.yml or core/$id/machine.yml)"
+  fi
+  local base out prov seed dom ud
   prov="$dir/provision.yml"
   [ -f "$prov" ] || die "no provision.yml for $id"
 
-  base=$(ensure_base "$(mach_get "$id" .base)")
+  base=$(ensure_base "$(yqf "$dir/machine.yml" .base)")
   mkdir -p "$VMS/$id"
   out="$VMS/$id/box.qcow2"
   step "copying base image"
@@ -36,7 +43,12 @@ build() {
   # the build-time MAC, so the deployed box (different MAC) never gets a lease.
   printf 'version: 2\nethernets:\n  lab:\n    match:\n      name: "e*"\n    dhcp4: true\n' >"$VMS/$id/network-config"
   ud="$VMS/$id/user-data"
-  inject_flags "$id" "$prov" "$ud"
+  # Challenge machines carry flags; core machines are infrastructure and do not.
+  if [ "$role" = core ]; then
+    cp -f "$prov" "$ud"
+  else
+    inject_flags "$id" "$prov" "$ud"
+  fi
   cloud-localds --network-config "$VMS/$id/network-config" "$seed" "$ud" "$VMS/$id/meta-data"
 
   dom="sakaar-build-$id"
@@ -45,7 +57,7 @@ build() {
 
   step "provisioning $id (boot + cloud-init; powers off when finished)"
   virt-install --name "$dom" \
-    --memory "$(mach_get "$id" .memory)" --vcpus "$(mach_get "$id" .cpus)" \
+    --memory "$(yqf "$dir/machine.yml" .memory)" --vcpus "$(yqf "$dir/machine.yml" .cpus)" \
     --import \
     --disk path="$out",format=qcow2,bus=virtio \
     --disk path="$seed",device=cdrom \

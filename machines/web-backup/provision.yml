@@ -1,0 +1,74 @@
+#cloud-config
+# Recipe for "Backup Blunder". Provisioned once at build time; the VM powers
+# itself off when done. Describe ONLY the challenge here - the build engine
+# injects the networking and the flags (user.txt / root.txt), so do not add them.
+
+package_update: true
+packages:
+  - nginx
+  - sudo
+  - openssh-server
+  - cron
+
+ssh_pwauth: true
+
+users:
+  - default
+  - name: dev
+    groups: [users]
+    shell: /bin/bash
+    lock_passwd: false
+
+write_files:
+  # The static intranet page. The backup below is not linked from here - it is
+  # meant to be found by content discovery (gobuster/feroxbuster with .bak).
+  - path: /var/www/html/index.html
+    permissions: '0644'
+    content: |
+      <!doctype html><title>Acme Intranet</title>
+      <h1>Acme Intranet</h1>
+      <p>Internal tools portal. Authorised staff only.</p>
+
+  # Intended privilege escalation: root runs this script every minute and it is
+  # world-writable, so the foothold user can rewrite it to run code as root.
+  - path: /etc/cron.d/maintenance
+    content: "* * * * * root /opt/maint/collect.sh\n"
+    permissions: '0644'
+
+  # Generate the SSH password at build and leak it through a leftover .bak of a
+  # deploy script (nginx serves .bak as plaintext, not as code). A weak,
+  # rockyou-crackable password would let an attacker skip the vuln by
+  # brute-forcing SSH. Logic lives in a script, not runcmd, so the password text
+  # cannot be misparsed as YAML.
+  - path: /opt/app/setup.sh
+    permissions: '0700'
+    content: |
+      #!/bin/bash
+      set -eu
+      pw=$(LC_ALL=C tr -dc 'A-Za-z0-9' </dev/urandom | head -c 20)
+      echo "dev:$pw" | chpasswd
+      cat >/var/www/html/deploy.sh.bak <<EOF
+      #!/bin/bash
+      # Deploy helper (backup copy - delete before go-live)
+      DEPLOY_USER=dev
+      DEPLOY_PASS=$pw
+      rsync -az ./dist/ "\$DEPLOY_USER@intranet:/var/www/html/"
+      EOF
+      chown -R www-data:www-data /var/www/html
+      mkdir -p /opt/maint
+      cat >/opt/maint/collect.sh <<'SH'
+      #!/bin/bash
+      uptime >/var/log/maint.log 2>&1
+      SH
+      chmod 0777 /opt/maint/collect.sh
+
+runcmd:
+  - bash /opt/app/setup.sh
+  - rm -f /opt/app/setup.sh
+  - rm -f /var/www/html/index.nginx-debian.html
+  - systemctl enable --now nginx ssh cron
+
+power_state:
+  mode: poweroff
+  timeout: 60
+  condition: true

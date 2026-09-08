@@ -18,15 +18,23 @@ tasks:
 
   # ------------------------------------------------------------- range lifecycle
   up:
-    desc: Bring up the range - lab network + graphical Kali attacker
+    desc: Bring up the range - lab network, graphical Kali attacker, and the persistent core
     cmds:
       - 'bash {{.S}}/lab.sh up'
       - 'bash {{.S}}/attacker.sh up'
+      - 'bash {{.S}}/core.sh up'
 
   down:
-    desc: Stop the attacker (definitions and disks are kept)
+    desc: Stop the attacker and the core (definitions and disks are kept)
     cmds:
       - 'bash {{.S}}/attacker.sh down'
+      - 'bash {{.S}}/core.sh down'
+
+  reset:
+    desc: Revert the whole arena - core and every deployed target - to clean baselines
+    cmds:
+      - 'bash {{.S}}/core.sh reset'
+      - 'bash {{.S}}/target.sh reset-all'
 
   status:
     desc: Show the attacker and deployed targets with their IPs
@@ -84,6 +92,22 @@ tasks:
     desc: Open a box's console (BOX=<id>, or run bare to fzf-pick)
     cmds:
       - 'bash {{.S}}/target.sh console {{.BOX}}'
+
+  # ----------------------------------------------------------------------- core
+  core:reset:
+    desc: Revert the persistent core to its clean baseline
+    cmds:
+      - 'bash {{.S}}/core.sh reset'
+
+  core:rebuild:
+    desc: Rebuild the core from its recipe (ID=<id>, or bare to rebuild all)
+    cmds:
+      - 'bash {{.S}}/core.sh rebuild {{.ID}}'
+
+  core:destroy:
+    desc: Remove the persistent core entirely (VMs, snapshots, disks)
+    cmds:
+      - 'bash {{.S}}/core.sh destroy'
 
   # -------------------------------------------------------------------- network
   net:up:
