@@ -36,6 +36,17 @@ Host (KVM/libvirt)
 
 Machine ids are unique across `core/` and `machines/` (both share `vms/<id>/`).
 
+## Name resolution
+
+The lab network has a DNS domain (`sakaar.lab`), and the resolver on the gateway
+(`10.10.10.1`) answers for every machine holding a lease. Boxes on the lab net
+use it automatically, so from one box you reach another by name: `web-backup` or
+`web-backup.sakaar.lab`, not its IP.
+
+The dual-homed Kali attacker keeps the NAT network as its primary resolver, so
+it does not resolve lab names out of the box. To attack targets by name from
+Kali, point it at `10.10.10.1` for the `sakaar.lab` domain (split DNS).
+
 ## Beginner-first curriculum
 
 Sakaar is built to be a gentle on-ramp: every box teaches one or two named

@@ -9,6 +9,9 @@ network:
   netmask: 255.255.255.0
   dhcp_start: 10.10.10.100
   dhcp_end: 10.10.10.240
+  # Range DNS domain. libvirt's resolver on the gateway answers for lab hosts,
+  # so boxes resolve each other by name (e.g. web-backup, web-backup.sakaar.lab).
+  domain: sakaar.lab
 
 # The graphical Kali attack box (official prebuilt qcow2, XFCE desktop).
 kali:

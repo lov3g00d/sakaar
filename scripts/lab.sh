@@ -11,6 +11,7 @@ define_xml() {
 <network>
   <name>${net}</name>
   <bridge name='$(lab .network.bridge)'/>
+  <domain name='$(lab .network.domain)' localOnly='yes'/>
   <ip address='$(lab .network.gateway)' netmask='$(lab .network.netmask)'>
     <dhcp>
       <range start='$(lab .network.dhcp_start)' end='$(lab .network.dhcp_end)'/>
