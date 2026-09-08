@@ -1,0 +1,10 @@
+id: web-ssrf
+name: LinkPeek
+description: A URL-preview tool fetches any server-side URL (SSRF) and reaches an internal admin service that leaks SSH credentials; foothold then a SUID PATH-hijack privilege escalation to root.
+difficulty: easy
+owasp: "A10:2021 Server-Side Request Forgery"
+base: debian12
+memory: 1024
+cpus: 1
+foothold_user: ops
+tags: [web, ssrf, path-hijack, privesc]

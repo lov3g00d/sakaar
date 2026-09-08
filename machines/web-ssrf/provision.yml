@@ -1,0 +1,119 @@
+#cloud-config
+# Recipe for "LinkPeek". Provisioned once at build time; the VM powers itself
+# off when done. Describe ONLY the challenge here - the build engine injects the
+# networking and the flags (user.txt / root.txt), so do not add them.
+
+package_update: true
+packages:
+  - apache2
+  - php
+  - libapache2-mod-php
+  - sudo
+  - openssh-server
+  - python3
+  - gcc
+  - libc6-dev
+
+ssh_pwauth: true
+
+users:
+  - default
+  - name: ops
+    groups: [users]
+    shell: /bin/bash
+    lock_passwd: false
+
+write_files:
+  - path: /var/www/html/index.php
+    content: |
+      <!doctype html><title>LinkPeek</title>
+      <h1>LinkPeek</h1>
+      <p>Preview any link, fetched server-side.</p>
+      <form method="get" action="preview.php">
+        <input name="url" size="48" placeholder="https://example.com">
+        <button>preview</button>
+      </form>
+      <p><small>Internal admin service runs on localhost:8000 (not exposed).</small></p>
+
+  # The SSRF: the server fetches whatever URL the user supplies, with no host or
+  # scheme restriction, so it can be pointed at internal-only services.
+  - path: /var/www/html/preview.php
+    content: |
+      <?php $url = $_GET['url'] ?? ''; ?>
+      <!doctype html><title>LinkPeek - preview</title>
+      <h1>Preview</h1>
+      <?php if ($url !== ''): ?>
+        <pre><?= htmlspecialchars(@file_get_contents($url)) ?></pre>
+      <?php endif; ?>
+      <p><a href="index.php">back</a></p>
+
+  # The internal admin service, bound to localhost only and reachable just via
+  # the SSRF. The password lives in this root-only script, so a file:// wrapper
+  # cannot read it - only an HTTP request to the service returns it.
+  - path: /opt/internal/admin.py
+    permissions: '0700'
+    content: |
+      #!/usr/bin/env python3
+      from http.server import BaseHTTPRequestHandler, HTTPServer
+      PW = "__SSRF_PW__"
+      class H(BaseHTTPRequestHandler):
+          def do_GET(self):
+              self.send_response(200)
+              self.send_header("Content-Type", "text/plain")
+              self.end_headers()
+              body = "Internal admin panel\nSSH user is ops\nSSH password is %s\n" % PW
+              self.wfile.write(body.encode())
+          def log_message(self, *a):
+              pass
+      HTTPServer(("127.0.0.1", 8000), H).serve_forever()
+
+  - path: /etc/systemd/system/internal-admin.service
+    content: |
+      [Unit]
+      Description=Internal admin
+      After=network.target
+      [Service]
+      ExecStart=/usr/bin/python3 /opt/internal/admin.py
+      Restart=on-failure
+      [Install]
+      WantedBy=multi-user.target
+
+  # PATH-hijack privesc: a SUID helper that raises to root then runs a command
+  # by name (not full path), so the foothold user can hijack it through PATH.
+  - path: /opt/app/status.c
+    content: |
+      #include <stdlib.h>
+      #include <unistd.h>
+      int main(void) {
+          setgid(0);
+          setuid(0);
+          system("uptime");
+          return 0;
+      }
+
+  # Generate the SSH password at build, plant it in the internal service, and
+  # build the SUID helper. Logic lives in a script, not runcmd, so the password
+  # text cannot be misparsed as YAML.
+  - path: /opt/app/setup.sh
+    permissions: '0700'
+    content: |
+      #!/bin/bash
+      set -eu
+      pw=$(LC_ALL=C tr -dc 'A-Za-z0-9' </dev/urandom | head -c 20)
+      echo "ops:$pw" | chpasswd
+      sed -i "s/__SSRF_PW__/$pw/" /opt/internal/admin.py
+      gcc -o /usr/local/bin/status /opt/app/status.c
+      chmod 4755 /usr/local/bin/status
+      rm -f /opt/app/status.c
+
+runcmd:
+  - bash /opt/app/setup.sh
+  - rm -f /opt/app/setup.sh
+  - rm -f /var/www/html/index.html
+  - systemctl daemon-reload
+  - systemctl enable --now internal-admin apache2 ssh
+
+power_state:
+  mode: poweroff
+  timeout: 60
+  condition: true

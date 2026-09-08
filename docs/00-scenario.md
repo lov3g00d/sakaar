@@ -56,9 +56,9 @@ guide. The roadmap, tiered by difficulty:
 | Tier | Classes | Status |
 |------|---------|--------|
 | Intro | enumeration, exposed services, reading a leaked secret | `web-backup` |
-| Easy (web) | one box per OWASP Top 10 category (A01 IDOR, A03 injection, A05 misconfiguration, A06 outdated component, ...) | `web-idor` = A01, `web-sqli` = A03, `web-backup` = A05 |
-| Easy (privesc) | sudo/GTFOBins, SUID, cron, capabilities, LXD/docker group | `web-sqli` (sudo find), `web-backup` (cron), `web-idor` (capabilities) |
-| Medium | command injection + race, NoSQL, SSRF, LFI chains | roadmap |
+| Easy (web) | one box per OWASP Top 10 category (A01 IDOR, A03 injection, A05 misconfiguration, A06 outdated component, A10 SSRF, ...) | `web-idor` = A01, `web-sqli` = A03, `web-backup` = A05, `web-ssrf` = A10 |
+| Easy (privesc) | sudo/GTFOBins, SUID, PATH hijack, cron, capabilities, LXD/docker group | `web-sqli` (sudo find), `web-backup` (cron), `web-idor` (capabilities), `web-ssrf` (PATH hijack) |
+| Medium | command injection + race, NoSQL, LFI chains | roadmap |
 | Network-service | NFS, rsync, SMB anonymous, memcached, SNMP -> RCE | roadmap |
 
 Boxes are built **to the vulnerability class**, never cloned from a specific
